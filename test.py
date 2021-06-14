@@ -15,6 +15,8 @@ import os
 import numpy as np
 import time
 
+test_folder = "test_data"
+test_output_folder = "test_data_output"
 # use this to change which GPU to use
 gpu = "0"
 
@@ -38,41 +40,49 @@ model = models.load_model(model_path, backbone_name='resnet101')
 labels_to_names = {0: 'Spaghetti'}
 
 # load image
-image = read_image_bgr('example.jpg')
 
-# copy to draw on
-draw = image.copy()
-draw = cv2.cvtColor(draw, cv2.COLOR_BGR2RGB)
+files = os.listdir(test_folder)
 
-# preprocess image for network
-image = preprocess_image(image)
-image, scale = resize_image(image)
+times = []
+# This would print all the files and directories
+for file in files:
+    file_path = os.path.join('.', test_folder, file)
 
-# process image
-start = time.time()
-a = model.predict_on_batch(np.expand_dims(image, axis=0))
-print(a[0])
-boxes, scores, labels = model.predict_on_batch(np.expand_dims(image, axis=0))
-print("processing time: ", time.time() - start)
+    image = read_image_bgr(file_path)
+    draw = image.copy()
+    draw = cv2.cvtColor(draw, cv2.COLOR_BGR2RGB)
 
-# correct for image scale
-boxes /= scale
+    start = time.time()
+    image = preprocess_image(image)
+    image, scale = resize_image(image)
+    a = model.predict_on_batch(np.expand_dims(image, axis=0))
+    print(a[0])
+    boxes, scores, labels = model.predict_on_batch(
+        np.expand_dims(image, axis=0))
+    boxes /= scale
 
-# visualize detections
-for box, score, label in zip(boxes[0], scores[0], labels[0]):
-    # scores are sorted so we can break
-    if score < 0.5:
-        break
+    # visualize detections
+    for box, score, label in zip(boxes[0], scores[0], labels[0]):
+        # scores are sorted so we can break
+        if score < 0.5:
+            break
 
-    color = label_color(label)
+        color = label_color(label)
 
-    b = box.astype(int)
-    draw_box(draw, b, color=color)
+        b = box.astype(int)
+        draw_box(draw, b, color=color)
 
-    caption = "{} {:.3f}".format(labels_to_names[label], score)
-    draw_caption(draw, b, caption)
+        caption = "{} {:.3f}".format(labels_to_names[label], score)
+        draw_caption(draw, b, caption)
 
-plt.figure(figsize=(15, 15))
-plt.axis('off')
-plt.imshow(draw)
-plt.show()
+    processing_time = time.time() - start
+    times.append(processing_time)
+
+    save_path = os.path.join('.', test_output_folder, f"output_{file}")
+    cv2.imwrite(save_path, draw)
+print(f"Average processing time: {sum(times)/len(times)}")
+
+# plt.figure(figsize=(15, 15))
+# plt.axis('off')
+# plt.imshow(draw)
+# plt.show()
